@@ -7,12 +7,13 @@ from statistics import mean
 from filtering import filter_detached_graph, filtered_graph 
 from seeding import get_subgraphs_cluster, compute_graclus_center
 from expansion import get_low_conductance_set,order_by_descending,get_minimum_conductance
+from propagation import propagate_communities
 import mlflow
-import os
+import os,getopt,sys
 import matplotlib.pyplot as plt
 from sklearn.linear_model import LogisticRegression
 
-def main():
+def main(argv):
     dataset_name="network_1000_7327"
     # path ="..\datasets\\network_100\\network_1000_7327.lfi"
     path ="..\datasets\\facebook\\0.edges"
@@ -20,6 +21,31 @@ def main():
     # path ="..\datasets\\HepPh\\ca-HepPh.mtx"
     # path ="..\datasets\\myspace\\soc-myspace.edges"
 
+    alpha = 0.9
+    epsilon = 10**-6
+    try:
+        opts, args = getopt.getopt(argv,"hi:d:a:e:",["ifile=","dfile=","afile=","efile="])
+    except getopt.GetoptError:
+        print("Usage: Main.py -i <inputfile> -d <datasetname> -a <alpha> -e <epsilon>")
+        sys.exit(2)
+
+    if len(opts) == 0:
+        print("Usage: Main.py -i <inputfile> -d <datasetname> -a <alpha> -e <epsilon>")
+        sys.exit()
+
+    for opt, arg in opts:
+        if opt == '-h':
+            print("Usage Main.py -i <inputfile> -d <datasetname> -a <alpha> -e <epsilon>")
+            sys.exit()
+        elif opt in ("-i", "--ifile"):
+            path = arg
+        elif opt in ("-d", "--dfile"):
+            dataset_name = arg
+        elif opt in ("-a", "--afile"):
+            alpha = float(arg)
+        elif opt in ("-e", "--efile"):
+            epsilon = float(arg)
+        
 
     with mlflow.start_run() as run:
         #Loading and generating graph----------------------------------------------------
@@ -95,24 +121,26 @@ def main():
         #Seeding exapansion phase--------------------------------------------------------
         print("-(Start) Expansion phase")
 
-        alpha = 0.9
-        epsilon = 10**-8
+        
         expanded_community_list = []
         G_bicon_expansion = G_biconnected_core.copy()
         for key,val in seed_dict_gc.items():
             Xv = get_low_conductance_set(G_bicon_expansion,val,alpha,epsilon)
             descending_graph_ordering = order_by_descending(Xv,G_bicon_expansion)
-            cond_min, conductance_values = get_minimum_conductance(descending_graph_ordering,G_bicon_expansion)
+            cond_min, conductance_values = get_minimum_conductance(descending_graph_ordering,G_bicon_expansion,key)
             expanded_community_list.append(cond_min)
         print("-(End) Expansion phase")
 
         #Propagation phase-------------------------------------------------------------
-
-        # for el in expanded_community_list:
-        #   print(el.g1_nodes)
-
+        print("-(Start) Propagation phase")
+        G_final = G.copy()
+        final_community_list = propagate_communities(expanded_community_list,list(G_detached.nodes),G_final)
+        for el in final_community_list:
+            print(" Final Community result:")
+            print("    ",el.name, " - ",len(el.g1_nodes))
+        print("-(End) Propagation phase")
         return
 
 
 if __name__ == "__main__":
-    main()
+    main(sys.argv[1:])

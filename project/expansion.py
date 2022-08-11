@@ -4,7 +4,8 @@ import networkx as nx
 
 
 class ConductanceStatistic:
-    def __init__(self,g1_nodes,g2_nodes,conductance_value):
+    def __init__(self,g1_nodes,g2_nodes,conductance_value,name):
+        self.name = name
         self.g1_nodes = g1_nodes
         self.g2_nodes = g2_nodes
         self.conductance_value = conductance_value
@@ -20,13 +21,13 @@ def get_low_conductance_set(Gb_copy,val,alpha,epsilon):
         Rv[el-1] = 1 / len(restart_node)
 
     finish_count = 0
-    count = 0
+    count = 0   
     isRunning = True
 
     #computation code
     while isRunning:
         node = list(Gb_copy.nodes)[count]
-        if Rv[node-1] > len(list(Gb_copy.neighbors(node)))*epsilon:
+        while Rv[node-1] > len(list(Gb_copy.neighbors(node)))*epsilon:
             finish_count = 0
             Xv[node-1] = Xv[node-1] + (1-alpha)*Rv[node-1]
             for el in Gb_copy.neighbors(node):
@@ -52,7 +53,7 @@ def order_by_descending(Xv, Gb_copy):
     descending_graph_ordering = dict( sorted(descending_graph_ordering.items(), key=operator.itemgetter(1),reverse=True))
     return descending_graph_ordering
 
-def get_minimum_conductance(descending_graph_ordering,Gb_core_copy):
+def get_minimum_conductance(descending_graph_ordering,Gb_core_copy,name):
     #Filter and get only 90% of total nodes
     maximun_nodes_iterations = int(len(descending_graph_ordering)*90/100)
     #calculate conductance
@@ -68,14 +69,14 @@ def get_minimum_conductance(descending_graph_ordering,Gb_core_copy):
             conductace_values.append(conductance_value)
 
             G2.remove_nodes_from(current_set)
-            cond = ConductanceStatistic(current_set, list(G2.nodes),conductance_value)
+            cond = ConductanceStatistic(current_set.copy(), list(G2.nodes).copy(),conductance_value,name)
             conductance_list_set.append(cond)
             count_iteration += 1
 
     #Calculate conductance min
-    cond_min = ConductanceStatistic(0,0,1)
+    cond_min = ConductanceStatistic(0,0,1,name)
     for el in conductance_list_set:
         if(el.conductance_value < cond_min.conductance_value):
             cond_min = el
-        
+
     return cond_min, conductace_values
